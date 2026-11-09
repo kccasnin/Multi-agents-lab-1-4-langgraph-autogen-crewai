@@ -25,7 +25,7 @@ from typing import Annotated, Literal
 from langchain_openai import ChatOpenAI
 from langgraph.graph import END, StateGraph
 from langgraph.graph.message import add_messages
-from langchain_core.messages import AIMessage, BaseMessage, ToolMessage
+from langchain_core.messages import AIMessage, BaseMessage, ToolMessage, SystemMessage
 
 from llm_client import DEFAULT_MODEL, get_client
 from task import TASK_DESCRIPTION
@@ -102,7 +102,37 @@ def agent_node(state: AgentState) -> dict:
     Raises:
         NotImplementedError: Remove this line once you implement the function.
     """
-    raise NotImplementedError("Implement agent_node()")
+
+    # Step 1: Build a ChatOpenAI instance using get_client() and DEFAULT_MODEL
+    openai_client = get_client()
+    model = ChatOpenAI(openai_client=openai_client, model=DEFAULT_MODEL)
+
+    # Step 2: Bind the tools from ALL_SCHEMAS to the model using `.bind_tools()`
+    model.bind_tools(ALL_SCHEMAS)
+
+    # Step 3: Add a SystemMessage if one is not present
+    if not state["messages"] or state["messages"][0].type != "system":
+        state["messages"].insert(0, SystemMessage(content=SYSTEM_PROMPT))
+
+    # Step 4: Invoke the model with state["messages"]
+    response = model(state["messages"])
+
+    # Step 5: Record token usage
+    tracker.record_step(
+        response.response_metadata["token_usage"]["prompt_tokens"],
+        response.response_metadata["token_usage"]["completion_tokens"]
+    )
+
+    # Step 6: Check if the AI content contains "DONE"
+    done = "DONE" in response.content
+
+    # Step 7: Return the updated state
+    return {
+        "messages": [response],
+        "step_count": state["step_count"] + 1,
+        "done": done
+    }
+
 
 
 # ---------------------------------------------------------------------------
@@ -166,3 +196,4 @@ if __name__ == "__main__":
     result = run()
     print("\n--- Agent finished ---")
     print(result)
+

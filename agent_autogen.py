@@ -100,8 +100,25 @@ def make_assistant() -> AssistantAgent:
     Raises:
         NotImplementedError: Remove this line once you implement the function.
     """
-    raise NotImplementedError("Implement make_assistant()")
+    agent = AssistantAgent(
+        name="coder_agent",
+        system_message=SYSTEM_PROMPT,
+        llm_config=_llm_config()
+    )
+    agent.register_for_llm(
+        name=READ_FILE_SCHEMA["name"],
+        description=READ_FILE_SCHEMA["description"]
+    )(read_file)
+    agent.register_for_llm(
+        name=WRITE_FILE_SCHEMA["name"],
+        description=WRITE_FILE_SCHEMA["description"]
+    )(write_file)
+    agent.register_for_llm(
+        name=EXEC_PYTHON_SCHEMA["name"],
+        description=EXEC_PYTHON_SCHEMA["description"]
+    )(exec_python)
 
+    return agent
 
 def make_proxy() -> UserProxyAgent:
     """Create and return a UserProxyAgent that executes tool calls.
@@ -124,7 +141,25 @@ def make_proxy() -> UserProxyAgent:
     Raises:
         NotImplementedError: Remove this line once you implement the function.
     """
-    raise NotImplementedError("Implement make_proxy()")
+    proxy = UserProxyAgent(
+            name="user_proxy",
+            human_input_mode="NEVER",
+            max_consecutive_auto_reply=15,
+            is_termination_msg=lambda msg: "DONE" in msg,
+            code_execution_config=False
+        )
+    
+        proxy.register_for_execution(
+            name=READ_FILE_SCHEMA["name"]
+        )(read_file)
+        proxy.register_for_execution(
+            name=WRITE_FILE_SCHEMA["name"]
+        )(write_file)
+        proxy.register_for_execution(
+            name=EXEC_PYTHON_SCHEMA["name"]
+        )(exec_python)
+    
+        return proxy
 
 
 # ---------------------------------------------------------------------------
@@ -161,8 +196,12 @@ def run() -> str:
     #   - message=TASK_DESCRIPTION
     #   - max_turns=15
     # Store the result in `result`, then call _record_usage(result).
-    raise NotImplementedError("Call proxy.initiate_chat() here")
-
+    result = proxy.initiate_chat(
+        recipient=assistant,
+        message=TASK_DESCRIPTION,
+        max_turns=15
+    )
+    _record_usage(result)
     tracker.print_summary()
 
     # Return the last message from the assistant
@@ -174,3 +213,4 @@ if __name__ == "__main__":
     output = run()
     print("\n--- Agent finished ---")
     print(output)
+

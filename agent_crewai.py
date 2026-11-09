@@ -77,13 +77,27 @@ def make_tools() -> list:
     - Example:
         @crewai_tool
         def my_tool(x: str) -> str:
-            \"\"\"One-line description.\"\"\"
-            return some_function(x)
+
 
     Raises:
         NotImplementedError: Remove this line once you implement the function.
     """
-    raise NotImplementedError("Implement make_tools()")
+    @crewai_tool
+def crewai_read_file(path: str) -> str:
+    """Read a file from the workspace."""
+    return read_file(path)
+
+@crewai_tool
+def crewai_write_file(path: str, content: str) -> str:
+    """Write content to a file in the workspace."""
+    return write_file(path, content)
+
+@crewai_tool
+def crewai_exec_python(code: str) -> str:
+    """Execute Python code in a sandboxed environment."""
+    return exec_python(code)
+
+    return [crewai_read_file, crewai_write_file, crewai_exec_python]
 
 
 def make_agent(tools: list) -> Agent:
@@ -106,8 +120,16 @@ def make_agent(tools: list) -> Agent:
     Raises:
         NotImplementedError: Remove this line once you implement the function.
     """
-    raise NotImplementedError("Implement make_agent()")
-
+    agent = Agent(
+        role="Coder Agent",
+        goal="Complete the assigned coding task correctly and efficiently.",
+        backstory="An expert Python developer who always writes clean, tested code.",
+        tools=tools,
+        llm=_make_llm(),
+        verbose=True,
+        max_iter=15
+    )
+    return agent
 
 def make_task(agent: Agent) -> Task:
     """Create and return a Task that assigns TASK_DESCRIPTION to the agent.
@@ -125,9 +147,13 @@ def make_task(agent: Agent) -> Task:
     Raises:
         NotImplementedError: Remove this line once you implement the function.
     """
-    raise NotImplementedError("Implement make_task()")
-
-
+    expected_output = "The coding task is completed successfully."
+    task = Task(
+        description=TASK_DESCRIPTION,
+        expected_output=expected_output,
+        agent=agent
+    )
+    return task
 # ---------------------------------------------------------------------------
 # Token tracking helper
 # ---------------------------------------------------------------------------
@@ -154,14 +180,13 @@ def run() -> str:
     agent = make_agent(tools)
     task = make_task(agent)
 
-    # TODO: Create a Crew with:
-    #   - agents=[agent]
-    #   - tasks=[task]
-    #   - verbose=True
-    # Call crew.kickoff() and store the result in `output`.
-    # Then call _record_usage(crew).
-    raise NotImplementedError("Create Crew and call kickoff() here")
-
+    crew = Crew(
+        agents=[agent],
+        tasks=[task],
+        verbose=True
+    )
+    output = crew.kickoff()
+    _record_usage(crew)
     tracker.print_summary()
     return str(output)
 
@@ -170,3 +195,5 @@ if __name__ == "__main__":
     result = run()
     print("\n--- Agent finished ---")
     print(result)
+
+
